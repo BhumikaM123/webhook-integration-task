@@ -42,11 +42,14 @@ The signature is computed over the exact raw JSON request bytes using `KYC_WEBHO
 }
 ```
 
-For a local signature, use the exact JSON bytes sent as the body:
+For a local signature, pass the exact one-line JSON body you will send to the endpoint to the helper script:
 
 ```bash
-node -e "const c=require('crypto'); const b=JSON.stringify({event_id:'evt-abc123',investor_id:'22222222-2222-4222-8222-222222222222',new_status:'approved',timestamp:'2026-06-20T14:30:00Z'}); console.log(c.createHmac('sha256',process.env.KYC_WEBHOOK_SECRET).update(b).digest('hex'))"
+BODY='{"event_id":"evt-abc123","investor_id":"22222222-2222-4222-8222-222222222222","new_status":"approved","timestamp":"2026-06-20T14:30:00Z"}'
+KYC_WEBHOOK_SECRET="your-local-secret" node scripts/sign-webhook.js "$BODY"
 ```
+
+Copy the printed hex value into the `X-KYC-Signature` header. The request body must match `BODY` byte-for-byte, including whitespace.
 
 The endpoint verifies HMAC, validates fields, reserves the event in Redis using `SET NX`, enqueues BullMQ, and acknowledges only after enqueue succeeds. Duplicate deliveries return 200 without another job. Queue failures release the reservation and return 500.
 
